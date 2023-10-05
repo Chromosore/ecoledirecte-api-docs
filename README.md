@@ -786,10 +786,6 @@ __GET__ `/v3/Eleves/{id}/cahierdetexte/{AAAA-MM-JJ}.awp`
 
 Permet d'obtenir le travail à faire en détail et le contenu de séance pour un jour spécifique.
 
-**Note**: Il y a deux champs contenu de séance, un directement dans la matière et un dans à faire. Je suspecte que celui  dans à faire soit prévu avant la séance alors que celui directement dans la matière soit renseigné après les faits.
-
-Je vérifierai la différence quand EcoleDirecte sera à nouveau fonctionnel et que j'aurai un exemple des deux.
-
 Data dans la réponse :
 ```typescript
 {
@@ -834,7 +830,7 @@ Data dans la réponse :
       elementsProg: [], // ?
       liensManuel: [], // URL des manuels associés à la matière ?
       documentsRendus: [], // Fichiers rendus lorsque le formulaire est présent ?
-      contenuDeSeance: {
+      contenuDeSeance: { // Contenu de dernière d'avant visiblement (ou celle où le devoir a été donné ?)
         contenu: string,
         documents: [],
         commentaires: [],
