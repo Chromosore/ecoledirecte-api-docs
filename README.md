@@ -40,6 +40,8 @@ Juste un rapide sommaire pour naviguer plus facilement dans la documentation.
   * [Manuels numériques](#manuels-numériques)
   * [QCMs](#qcms)
   * [Commandes](#commandes)
+* [Messagerie](#messagerie)
+  * [Messages](#messages)
 * [Classe](#classe)
   * [Vie de la classe](#vie-de-la-classe)
 * [Cloud](#cloud)
@@ -1481,6 +1483,159 @@ __DELETE__ ``v3/E/{id}/commandesPassage/{idCommande}.awp``<br>
 
 Permet de supprimer une commande, selon l'idCommande.<br>
 Il ne renvoie rien si l'idCommande est bon. Sinon, il renvoie simplement un code erreur 210.
+
+## Messagerie
+
+### Messages
+
+__GET__ `/v3/eleves/{id}/messages.awp`
+
+Donne la liste des classeurs (dossiers), liste les messages (soit dans un dossier soit tous les messages) et donne les paramètres de la messagerie.
+
+Paramètres de recherche (tous optionnels) :
+ - `force`: `true|false` <br/>
+   Ça fait rien visiblement
+ - `typeRecuperation`: `received|sent|archived|draft` ou autre <br/>
+   Pour choisir si vous voulez voir seulement les messages envoyés, reçus, archivés ou les brouillons.
+   Mettre autre chose donnera toutes les catégories.
+ - `idClasseur`: `{id}` <br/>
+   Pour voir les messages d'un classeur (dossier de message) précis.
+   Ne pas le préciser ne donne pas la boîte de réception mais tous les messages confondus.
+ - `orderBy`: `date|...` <br/>
+   Pour chosir la clé selon laquelle les messages sont triés.
+   Fonctionne pour certains champs des messages (par exemple `subject` marche mais pas `answered`).
+ - `order`: `desc|...` <br/>
+   Pour choisir l'ordre de tri (croissant ou décroissant).
+   `desc` donne décroissant, n'importe quelle autre chose donne croissant.
+ - `query`: `{recherche}` <br/>
+   Pour rechercher des messages contenant un certain texte.
+ - `onlyRead`: `1|0` ou vide <br/>
+   Permet de filtrer les messages selon s'ils sont lus ou pas.
+   - `0` (ou autre) : messages non lus seulement
+   - `1` : messages lus seulement
+   - vide : pas de filtrage
+ - `page`: `{page}` <br/>
+   Page (dépend de itemsPerPage). Commence à 0.
+ - `itemsPerPage`: `{nombre}` <br/>
+   Nombre de messages par page.
+ - `getAll`: `0` <br/>
+   Indiquer `1` pour recevoir tous les messages, sans pagination.
+   Dans ce cas, les paramètres `page` et `itemsPerPage` sont évidemment ignorés.
+
+Data en body :
+```typescript
+{
+  anneeMessages: "AAAA-AAAA", // Pour sélectionner une année scolaire, optionnel
+}
+```
+
+Data dans la réponse :
+```typescript
+{
+  classeurs: Array<{
+    id: number,
+    libelle: string,
+  }>,
+  messages: {
+    received: Array<Message & {
+      mtype: "received",
+      content: "", // Le contenu du message n'est inclu que dans la route de détail (route suivante)
+      to: [],
+    }>,
+    sent: Array<Message & {
+      mtype: "send",
+      to_cc_cci: "", // Puisqu'on est pas destinataire du message (champ qui indique quel *type* de destinataire on est)
+      content: "",
+    }>,
+    draft: Array<Message>,
+    archived: Array<Message & {
+      mtype: "received",
+      content: "",
+      to: [],
+    }>,
+  },
+  parametrage: {
+    isActif: true, // ?
+    canParentsLireMessagesEnfants: false,
+    destAdmin: true, // Les champs destXXX choisissent probablement à quelles personnes l'élève peut envoyer des messages
+    destEleve: false,
+    destFamille: false,
+    destProf: true,
+    destEspTravail: true,
+    disabledNotification: true,
+    notificationEmailEtablissement: true,
+    choixMailNotification: 2 | 3, // ?
+    autreMailNotification: string,
+    mailPro: "",
+    mailPerso: "",
+    messagerieApiVersion: "v3",
+    blackListProfActive: false,
+    estEnBlackList: false,
+    afficherToutesLesClasses: false,
+  },
+  pagination: {
+    messagesRecusCount: number, // Nombre *total* de messages reçus (received est limité à 100/page)
+    messagesEnvoyesCount: number, // Nb total de messages envoyés
+    messagesArchivesCount: number, // Nb total de messages archivés
+    messagesRecusNotReadCount: number, // Nombre de messages reçus non lus
+    messagesDraftCount: number, // Nb total brouillons (à priori?)
+  },
+}
+```
+
+```typescript
+type Message = {
+  id: number,
+  mtype: "received" | "send",
+  read: bool,
+  idDossier: number, // -1 = received, -2 = sent, -3 = archived (-4 = draft ?)
+  idClasseur: number, // Dossier du message, 0 = boîte de réception
+  transferred: bool, // false pour les messages envoyés
+  answered: bool,    // de même
+  to_cc_cci: "to" | "cci" | "cc" | "", // quel type de destinataire on est, vide quand message envoyé
+  brouillon: bool,
+  subject: string,
+  content: "",
+  date: "AAAA-MM-JJ",
+  to: Array<Personne & {
+    to_cc_cci: "to", // Quel type de destinaire est chaque personne à qui on envoie le message
+  }>  // Vide pour les messages reçus,
+  files: Array<PieceJointe>,
+  from: Personne & {
+    listeRouge: false, // ?
+  },
+  responseId?: number, // Ces trois champs semblent être un nouveauté de l'API (nouvelle version)
+  forwardId?: number,  // puisque étant donné que j'ai collecté des données de navigation à des
+  canAnswer?: false,   // intervalles assez espacé j'ai plusieurs versions différentes de l'API
+                       // (donc il me faudrait un moyen de distinguer (TODO))
+}
+```
+
+```typescript
+type PieceJointe = {
+  type: "PIECE_JOINTE",
+  id: number,
+  libelle: string,
+  date: "AAAA-MM-JJ",
+  signatureDemandee: false,
+  signature: {},
+}
+```
+
+```typescript
+type Personne = {
+  name: string, // Nom complet : "Civilite Prenom NOM (fonction)"
+  nom: string,
+  prenom: string,
+  particule: string,
+  civilite: "" | "M." | "Mme",
+  role: "A" | "P" | "E", // A = administration, P = professeur, E = élève
+  id: number,
+  read: true, // Une fonction "vu" ?? Ce serait génial ! (TODO: à vérifier)
+  fonctionPersonnel: string,
+}
+// TODO: Fusionner avec les autres types personne
+```
 
 ## Classe
 
